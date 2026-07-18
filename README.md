@@ -155,11 +155,12 @@ key represent the result and error message (if any).
 
 So if two projects using TaskIQ are forced to share a redis logical DB, now you know how to prevent a disaster.
 
-Finally, this library, unlike Celery, seems to lack the concept of _task status_. At a low level, absence of the
-key (<<prefix>>:<<task id>>) itself signals the task has not reached a terminal state (which has the same interpretation
+Finally, this library, unlike Celery, seems to lack the concept of _task status_ and an explicit polling mechanism. At a
+low level, absence of the
+key (\<prefix\>:\<task id\>) itself signals the task has not reached a terminal state (which has the same interpretation
 as if the task never existed).
 This surfaces to the application layer via `ResultIsMissingError` (look `src/client.py`). Keep this in mind when you
-poll.
+check for results.
 
 #### Closing Words
 
