@@ -26,7 +26,7 @@ logging.basicConfig(
 REDIS_URL: Final[str] = "redis://localhost:6379/0"  # Where is the broker running?
 TASK_NAME: Final[str] = 'addition'  # What is the task name?
 QUEUE: Final[str] = 'sample_queue'  # Where does the worker look for task inputs to pick up?
-KEY_PREFIX: Final[str] = 'sample_result'  # What key prefix to use to store the results?
+KEY_PREFIX: Final[str] = 'sample_result'  # What key prefix to store the results?
 
 broker: BaseRedisBroker = ListQueueBroker(url=REDIS_URL, queue_name=QUEUE)  # Look for tasks here
 broker.with_result_backend(
@@ -44,7 +44,7 @@ async def add_one(value: int) -> int:
 async def main() -> None:
     """Use this pattern for a task dispatch when you can afford to import and wait for a task."""
     await broker.startup()
-    # Send the task to the broker.
+    # Send the task to the broker using a randomly chosen input
     mock_input: int = random.randint(a=0, b=100)
     task: AsyncTaskiqTask = await add_one.kiq(mock_input)
     logging.debug(msg=f'Created task: {task.task_id} with arguments: {mock_input}.')
@@ -52,11 +52,11 @@ async def main() -> None:
     result: TaskiqResult = await task.wait_result(with_logs=True)
     logging.debug(msg=f"Task execution took: {result.execution_time} seconds.")
     if not result.is_err:
-        assert result.return_value == mock_input + 1
+        assert result.return_value == mock_input + 1  # Make sure the result is correct
         logging.debug(msg=f"Returned value: {result.return_value}")
     else:
         logging.debug(msg="Error found while executing task.")
-    # await broker.shutdown()
+    await broker.shutdown()
 
 
 if __name__ == "__main__":

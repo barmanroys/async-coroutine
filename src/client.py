@@ -23,15 +23,15 @@ logging.basicConfig(
 # I am deliberately avoiding import from the worker module.
 REDIS_URL: Final[str] = "redis://localhost:6379/0"  # Where is the broker running?
 TASK_NAME: Final[str] = 'addition'  # What is the task name?
-QUEUE: Final[str] = 'sample_queue'  # Where does the worker look for task inputs to pick up?
-KEY_PREFIX: Final[str] = 'sample_result'  # What key prefix to use to store the results?
+QUEUE: Final[str] = 'sample_queue'  # Which queue to push the tasks to?
+KEY_PREFIX: Final[str] = 'sample_result'  # What is the key prefix when looking up a result by task id?
 
 
 async def main() -> None:
     """Use this pattern for generic dispatch without importing the task definition."""
     task_id: str = str(uuid4())  # Ensure uniqueness to avoid one task's result being overwritten by another
-    mock_input: int = random.randint(a=0, b=100)
-    # First form the client friendly message based on the shared context
+    mock_input: int = random.randint(a=0, b=100)  # Make the input random
+    # Form the client friendly message based on the shared context
     message: TaskiqMessage = TaskiqMessage(
         task_id=task_id,
         task_name=TASK_NAME,
@@ -59,12 +59,14 @@ async def main() -> None:
         try:
             result: TaskiqResult = await result_backend.get_result(task_id=task_id, with_logs=True)
             if not result.is_err:
-                assert result.return_value == mock_input + 1
+                assert result.return_value == mock_input + 1  # Make sure the result is correct
                 logging.debug(msg=f"Returned value: {result.return_value}")
             else:
                 logging.debug(msg="Error found while executing task.")
             break
         except ResultIsMissingError:
+            # No clear enumerated status available like Celery, hence
+            # absence of a result itself is the signal that the task is still incomplete
             logging.info(msg="Result not available yet, will check again later.")
     await broker.shutdown()
 
