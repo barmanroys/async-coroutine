@@ -1,0 +1,11 @@
+[project]
+name = "taskiq-poc"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.12.*" # Too recent versions cause issues as some dependencies are not backward compatible
+dependencies = [
+    "redis<6",
+    "taskiq[reload]>=0.12.4",
+    "taskiq-redis>=1.0.9",
+]

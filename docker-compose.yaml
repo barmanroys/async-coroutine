@@ -1,0 +1,7 @@
+services:
+  redis:
+    image: "redis:alpine"
+    ports:
+      # Expose it to make sure the python worker and
+      # client can access it without containerisation
+      - "6379:6379" # host:container
