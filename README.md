@@ -11,7 +11,7 @@ Minimal primitives to get an asyncio executor running with Redis Queue to
 Previously, I experimented with [Celery](https://github.com/barmanroys/encrypt-decrypt-asynchronous) to achieve the same
 outcome. But the major limitation of Celery is the absence
 of [asyncio coroutine](https://docs.python.org/3/library/asyncio-task.html) support. Technically, it is possible to go
-round this using `asyncio.run`, but the pattern is ugly and defeats the purpose of coroutine.
+around this using `asyncio.run`, but the pattern is ugly and defeats the purpose of coroutine.
 While experimenting with alternatives, at first I stumbled upon [ARQ](https://arq-docs.helpmanual.io/#), but also found
 out it is in _Sunset_ mode.
 
@@ -19,7 +19,7 @@ Hence, the choice of TaskIQ and this small project serving as a PoC.
 
 ### Generic Task Dispatch
 
-A few words on this concept in order, which is also the reason I felt motivated to write this.
+A few words on this concept is in order, which is also the reason I felt motivated to write this.
 The [TaskIQ landing page](https://taskiq-python.github.io/guide/getting-started.html) gives an easy pattern to invoke a
 job asynchronously and wait for the result.
 But the important assumption in the pattern (and I cannot emphasise this enough) is
@@ -44,8 +44,9 @@ to execute, this is what needs to happen
 * A client places the task (or any number of tasks) on the queue. Part of the task message is a unique task id (a
   string, which should represent a UUID to avoid collision)
 * An available worker claims and pops a task (if all workers are busy, the task waits in the queue)
-* A worker executes a task it picked up, and puts the result (or an error message) on the backend (which may be the same
-  redis server, and it is, in this example)
+* A worker executes a task it picked up. Upon (successful or unsuccessful) completion, it puts the result (or an error
+  message) on the backend (which may be the same
+  redis server as the broker, and it is, in our example).
 
 ##### Client-Worker Contract Surface
 
@@ -69,9 +70,9 @@ That may sound daunting, but probably you still realise the surface area is mini
 Based on this, I have formulated my extremely advanced computation algorithm that can...well, add one to an integer that
 you supply, which is defined in `src/worker.py`.
 As part of this maddeningly complex computation, I have also introduced a very long delay (as perceived by a processor)
-of about five seconds, to see the impact of unfinished task.
+of about five seconds, to see the impact of unfinished tasks.
 
-That is probably all you need in terms of code-walkthrough and design document. Armed with it, if you look through the
+That is probably all you need in terms of code-walkthrough and design guide. Armed with it, if you look through the
 code (two Python files), it should easily make sense.
 
 #### Test the code
@@ -131,7 +132,7 @@ So here is an idea of how to run them in a totally decoupled manner
   client to put on the Redis queue
 
 I did not get the bandwidth to write out the Dockerfiles and Kubernetes manifests for the isolation, but if any of you
-feel like getting your hands dirty, feel free to add a branch or send a PR.
+feel like getting your hands dirty, feel free to add branch out and send a PR.
 It will be a highly instructive exercise working the right muscle groups, and prove you have really internalised the
 concepts.
 
@@ -150,7 +151,7 @@ easily make sense with a bit of inspection.
 
 The key prefix for the result backend, as the name implies, is literally the prefix of the result key. An example key (
 from this project) is
-_sample_result:6c034898-46c5-4c09-8736-bb71337b6133_ where the suffix (after colon) is the task id. The content of this
+`sample_result:6c034898-46c5-4c09-8736-bb71337b6133` where the suffix (after colon) is the task id. The content of this
 key represent the result and error message (if any).
 
 So if two projects using TaskIQ are forced to share a redis logical DB, now you know how to prevent a disaster.
@@ -166,8 +167,9 @@ check for results.
 
 I was looking for a similar library in Rust, but based on a bit of reading it appears this is lacking so far. But the
 Rust community also encourages a more DIY culture, which is daunting but fun at some level.
-I believe based on the understanding (especially the transport layer protocol and queue management), one should be able
-to wire together a basic async executor using Celery and Rust, although a lot of unknowns remain.
+I believe based on the understanding from this project (especially the transport layer protocol and serialisation), one
+should be able
+to wire together a basic async executor using Redis and Rust, although a lot of unknowns remain.
 This is certainly something I want to try as soon as I get some bandwidth. In case you want to collaborate or have any
 idea, my
 [inbox](mailto:swagatopablo@aol.com) is always open.
