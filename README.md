@@ -6,6 +6,8 @@ Minimal primitives to get an asyncio executor running with Redis Queue to
 * Poll for results
 * Fetch results once completed
 
+with a more loosely coupled contract than offered by the documented TaskIQ interfaces.
+
 ## Motivation
 
 Previously, I experimented with [Celery](https://github.com/barmanroys/encrypt-decrypt-asynchronous) to achieve the same
@@ -27,16 +29,16 @@ But the important assumption in the pattern (and I cannot emphasise this enough)
 > The client has access to the function, i.e. either defined in the same module or the function is somehow importable
 
 That is just too big of an API surface area, and the contract is unnecessarily large for my taste. Expecting the client
-to somehow import or know the full implementation of a _task_ (the basic primitive) is ridiculous.
+to somehow import or know the full implementation of a _task_ (the basic primitive) is not viable or scalable.
 Hence, the attempt to go through the [TaskIQ source code](https://github.com/taskiq-python/taskiq), trying to peel apart
 the high level primitives to something a bit lower level, but still intuitive enough.
 
-You can go through the code on your own, I would not explain every line (I believe the files are well commented), so I
+You can go through the code on your own, (I believe the files are well commented), so I
 will keep this README to a minimal.
 
 ## Basic Architecture
 
-The core idea is very simple. A redis server (running on localhost here) serves as the broker and result backend. For a
+The core idea is very simple. A Redis server (running on localhost here) serves as the broker and result backend. For a
 task
 to execute, this is what needs to happen
 
@@ -45,22 +47,24 @@ to execute, this is what needs to happen
   string, which should represent a UUID to avoid collision)
 * An available worker claims and pops a task (if all workers are busy, the task waits in the queue)
 * A worker executes a task it picked up. Upon (successful or unsuccessful) completion, it puts the result (or an error
-  message) on the backend (which may be the same
-  redis server as the broker, and it is, in our example).
+  message) on the backend (same Redis server in this example, but can be different).
+
+![Architecture](docs/figure.svg)
 
 ##### Client-Worker Contract Surface
 
 We already touched upon this once, now is the time to make it more concrete. In the implementation shown in this
 project, the contract (shared context) between the client and worker includes
 
-* The broker URL
-* The result backend URL (same as broker in this project, but you can set up a different redis logical DB to serve as
-  the backend)
-* The queue name (`taskiq` provides a default, but best to use one for your project to avoid collision against other
+* The broker and result backend URLs
+* The queue name (TaskIQ provides
+  a [default](https://github.com/taskiq-python/taskiq-redis/blob/main/taskiq_redis/redis_broker.py#L36), but best to use
+  one for your project to avoid collision against other
   projects using the same Redis logical DB)
-* The result key prefix (same advice as above, using `taskiq` default runs the risk of unnecessary key collision)
-* The task _name_ (assuming the worker knows to perform different kinds of tasks, such as a pipeline dealing with image
-  data may be capable of different kind of filtering, image segmentation or image recognition via vision models). A task
+* The result key prefix (same advice as above, using TaskIQ default skips any prefix and runs the risk of unnecessary
+  key collision)
+* The task _name_ (assuming the worker has different kinds of tasks registered, such as a pipeline dealing with image
+  data may be capable of different kinds of filtering, segmentation or image recognition via vision models). A task
   must be identified by its unique name and the client must know the name.
 * Function signature of the task (identified by a name), preferably with keyword argument names, data types and return
   type (just like what you should know to invoke a function in python)
@@ -132,14 +136,14 @@ So here is an idea of how to run them in a totally decoupled manner
   client to put on the Redis queue
 
 I did not get the bandwidth to write out the Dockerfiles and Kubernetes manifests for the isolation, but if any of you
-feel like getting your hands dirty, feel free to add branch out and send a PR.
-It will be a highly instructive exercise working the right muscle groups, and prove you have really internalised the
+feel like getting your hands dirty, feel free to branch out and send a PR. It will be a highly instructive exercise
+working the right muscle groups, and prove you have really internalised the
 concepts.
 
 If the idea of K8s sounds daunting, you can achieve the same with a more detailed docker compose stack as well, and
 again, you are welcome to try.
 
-#### Salient Points from Peek Under the Hood
+#### Peek Under the Hood
 
 It is also quite instructive to look at the logs being flashed (both worker process and the redis server) to get a
 better appreciation of the transport layer protocol. Based on my limited experimentation, here are some stuff I noticed
@@ -163,9 +167,21 @@ as if the task never existed).
 This surfaces to the application layer via `ResultIsMissingError` (look `src/client.py`). Keep this in mind when you
 check for results.
 
+#### Best Practices
+
+The Redis service (especially if running on Kubernetes) is meant to be a cattle, not pet. So you should assume the pod
+can die any moment and spun up again by Kubernetes.
+
+Hence, do not depend on it to store the results on a long term basis. Rather, if the task has results, then let the
+worker put the results in some more durable persistence media (database, data warehouse or object/file storage).
+
+In addition, if you take the above route to store results, also make the tasks themselves idempotent following good data
+engineering practice. That means if the same task runs more than once with the same input, the persistence layer must
+not end up in an inconsistent stage.
+
 #### Closing Words
 
-I was looking for a similar library in Rust, but based on a bit of reading it appears this is lacking so far. But the
+I was looking for a similar library in Rust. Based on a bit of reading it appears this is lacking so far, but the
 Rust community also encourages a more DIY culture, which is daunting but fun at some level.
 I believe based on the understanding from this project (especially the transport layer protocol and serialisation), one
 should be able
