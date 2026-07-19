@@ -156,7 +156,7 @@ easily make sense with a bit of inspection.
 The key prefix for the result backend, as the name implies, is literally the prefix of the result key. An example key (
 from this project) is
 `sample_result:6c034898-46c5-4c09-8736-bb71337b6133` where the suffix (after colon) is the task id. The content of this
-key represent the result and error message (if any).
+key represents the result and error message (if any).
 
 So if two projects using TaskIQ are forced to share a redis logical DB, now you know how to prevent a disaster.
 
@@ -164,7 +164,7 @@ Finally, this library, unlike Celery, seems to lack the concept of _task status_
 low level, absence of the
 key (\<prefix\>:\<task id\>) itself signals the task has not reached a terminal state (which has the same interpretation
 as if the task never existed).
-This surfaces to the application layer via `ResultIsMissingError` (look `src/client.py`). Keep this in mind when you
+This surfaces to the application layer via `ResultIsMissingError` (look at `src/client.py`). Keep this in mind when you
 check for results.
 
 #### Best Practices
